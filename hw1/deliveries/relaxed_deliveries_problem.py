@@ -35,25 +35,22 @@ class RelaxedDeliveriesState(GraphProblemState):
     def __eq__(self, other):
         """
         This method is used to determine whether two given state objects represents the same state.
-
-        TODO: implement this method!
-        Notice: Never compare floats using `==` operator! Use `fuel_as_int` instead of `fuel`.
         """
-        raise NotImplemented()  # TODO: remove!
+        assert isinstance(other, RelaxedDeliveriesState)
+        if not self.current_location == other.current_location:
+            return False
+        if not self.dropped_so_far == other.dropped_so_far:
+            return False
+        if not self.fuel_as_int == other.fuel_as_int:
+            return False
+        return True
 
     def __hash__(self):
         """
         This method is used to create a hash of a state.
         It is critical that two objects representing the same state would have the same hash!
-
-        TODO: implement this method!
-        A common implementation might be something in the format of:
-        >>> return hash((self.some_field1, self.some_field2, self.some_field3))
-        Notice: Do NOT give float fields to `hash(...)`.
-                Otherwise the upper requirement would not met.
-                In our case, use `fuel_as_int`.
         """
-        raise NotImplemented()  # TODO: remove!
+        return hash((self.current_location, self.dropped_so_far, self.fuel_as_int))
 
     def __str__(self):
         """
@@ -92,17 +89,27 @@ class RelaxedDeliveriesProblem(GraphProblem):
         For each successor, a pair of the successor state and the operator cost is yielded.
         """
         assert isinstance(state_to_expand, RelaxedDeliveriesState)
-
-        raise NotImplemented()  # TODO: remove!
+        possible_new_stop_points = self.possible_stop_points - state_to_expand.dropped_so_far
+        for stop_point in possible_new_stop_points:
+            cost = state_to_expand.current_location.calc_air_distance_from(stop_point)
+            if cost > state_to_expand.fuel:
+                continue
+            if stop_point in self.drop_points:
+                new_fuel = state_to_expand.fuel - cost
+                new_dropped_so_far = state_to_expand.dropped_so_far | { stop_point }
+            else:
+                new_fuel = self.gas_tank_capacity
+                new_dropped_so_far = state_to_expand.dropped_so_far
+            next_state = RelaxedDeliveriesState(stop_point, new_dropped_so_far, new_fuel)
+            yield (next_state, cost)
 
     def is_goal(self, state: GraphProblemState) -> bool:
         """
         This method receives a state and returns whether this state is a goal.
-        TODO: implement this method!
         """
-        assert isinstance(state, RelaxedDeliveriesState)
-
-        raise NotImplemented()  # TODO: remove!
+        # A state is defined as a goal state if it's at a drop point and has no other drop points to go to
+        return state.current_location in self.drop_points \
+                and state.dropped_so_far == self.drop_points
 
     def solution_additional_str(self, result: 'SearchResult') -> str:
         """This method is used to enhance the printing method of a found solution."""
