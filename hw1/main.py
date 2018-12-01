@@ -108,9 +108,7 @@ def relaxed_deliveries_problem():
     print(res)
 
     # Ex.18
-    # TODO: Call here the function `run_astar_for_weights_in_range()`
-    #       with `MSTAirDistHeuristic` and `big_deliveries_prob`.
-    exit()  # TODO: remove!
+    run_astar_for_weights_in_range(MSTAirDistHeuristic, big_deliveries_prob)
 
     # Ex.24
     # TODO:
