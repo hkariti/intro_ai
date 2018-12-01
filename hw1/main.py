@@ -28,6 +28,7 @@ def plot_distance_and_expanded_wrt_weight_figure(
 
     fig, ax1 = plt.subplots()
 
+    ax1.set_title('Cost and quality of solution wrt heuristic weight')
     ax1.plot(weights, total_distance, 'b-')
 
     # ax1: Make the y-axis label, ticks and tick labels match the line color.
