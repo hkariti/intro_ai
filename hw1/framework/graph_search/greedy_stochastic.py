@@ -21,34 +21,56 @@ class GreedyStochastic(BestFirstSearch):
         self.heuristic_function = self.heuristic_function_type(problem)
 
     def _open_successor_node(self, problem: GraphProblem, successor_node: SearchNode):
-        """
-        TODO: implement this method!
-        """
-
-        raise NotImplemented()  # TODO: remove!
+        if self.close.has_state(successor_node.state):
+            return
+        if not self.open.has_state(successor_node.state):
+            self.open.push_node(successor_node)
 
     def _calc_node_expanding_priority(self, search_node: SearchNode) -> float:
-        """
-        TODO: implement this method!
-        Remember: `GreedyStochastic` is greedy.
-        """
-
-        raise NotImplemented()  # TODO: remove!
+        h = self.heuristic_function.estimate
+        return h(search_node.state)
 
     def _extract_next_search_node_to_expand(self) -> Optional[SearchNode]:
         """
         Extracts the next node to expand from the open queue,
          using the stochastic method to choose out of the N
          best items from open.
-        TODO: implement this method!
-        Use `np.random.choice(...)` whenever you need to randomly choose
-         an item from an array of items given a probabilities array `p`.
-        You can read the documentation of `np.random.choice(...)` and
-         see usage examples by searching it in Google.
-        Notice: You might want to pop min(N, len(open) items from the
-                `open` priority queue, and then choose an item out
-                of these popped items. The other items have to be
-                pushed again into that queue.
         """
+        # Pop the N-most prioritised nodes from self.open
+        nodes_options = []
+        popped_nodes = 0
+        while popped_nodes < self.N:
+            if self.open.is_empty():
+                break
+            node = self.open.pop_next_node()
+            popped_nodes += 1
+            nodes_options.append(node)
+        if not nodes_options:
+            return
+        # Choose one randomly and put the un-chosen nodes back in self.open
+        chosen_node = self._choose_node_randomly(nodes_options)
+        for n in nodes_options:
+            if n == chosen_node:
+                continue
+            self.open.push_node(n)
+        # Scale T value for next time
+        self.T *= self.T_scale_factor
+        # We're done
+        return chosen_node
 
-        raise NotImplemented()  # TODO: remove!
+    def _choose_node_randomly(self, nodes_options):
+        # A priority of zero will have probability of 1, so just choose it now
+        zero_priority_nodes = [ n for n in nodes_options if n.expanding_priority == 0 ]
+        if (zero_priority_nodes):
+            return zero_priority_nodes[0]
+        # Normalize priorities, to prevent numbers exploding to inf or zero
+        priorities = np.array([ n.expanding_priority for n in nodes_options ])
+        alpha = np.min(priorities) 
+        normalized_priorities = priorities / alpha
+        # Calculate probabilies vector
+        priorities_exp = np.power(normalized_priorities, -1/self.T)
+        priorities_sum = priorities_exp.sum()
+        P = priorities_exp / priorities_sum
+        # Choose a node randomly based on calculated priorities
+        chosen_node = np.random.choice(nodes_options, p=P)
+        return chosen_node
