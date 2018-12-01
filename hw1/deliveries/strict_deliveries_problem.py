@@ -58,7 +58,6 @@ class StrictDeliveriesProblem(RelaxedDeliveriesProblem):
 
     def expand_state_with_costs(self, state_to_expand: GraphProblemState) -> Iterator[Tuple[GraphProblemState, float]]:
         """
-        TODO: implement this method!
         This method represents the `Succ: S -> P(S)` function of the strict deliveries problem.
         The `Succ` function is defined by the problem operators as shown in class.
         The relaxed problem operators are defined in the assignment instructions.
@@ -67,14 +66,34 @@ class StrictDeliveriesProblem(RelaxedDeliveriesProblem):
         For each successor, a pair of the successor state and the operator cost is yielded.
         """
         assert isinstance(state_to_expand, StrictDeliveriesState)
-
-        raise NotImplemented()  # TODO: remove!
+        possible_new_stop_points = self.possible_stop_points - state_to_expand.dropped_so_far
+        for stop_point in possible_new_stop_points:
+            src_junction = state_to_expand.current_location.index
+            dest_junction = stop_point.index
+            cache_key = (src_junction, dest_junction)
+            # Lookup the cost in the cache, otherwise calculate it and save
+            cost = self._get_from_cache(cache_key)
+            if cost is None:
+                map_problem = MapProblem(self.roads, src_junction, dest_junction)
+                res = self.inner_problem_solver.solve_problem(map_problem)
+                cost = res.final_search_node.cost
+                self._insert_to_cache(cache_key, cost)
+            if cost > state_to_expand.fuel:
+                continue
+            if stop_point in self.drop_points:
+                new_fuel = state_to_expand.fuel - cost
+                new_dropped_so_far = state_to_expand.dropped_so_far | { stop_point }
+            else:
+                new_fuel = self.gas_tank_capacity
+                new_dropped_so_far = state_to_expand.dropped_so_far
+            next_state = StrictDeliveriesState(stop_point, new_dropped_so_far, new_fuel)
+            yield (next_state, cost)
 
     def is_goal(self, state: GraphProblemState) -> bool:
         """
         This method receives a state and returns whether this state is a goal.
-        TODO: implement this method!
         """
         assert isinstance(state, StrictDeliveriesState)
-
-        raise NotImplemented()  # TODO: remove!
+        # A state is defined as a goal state if it's at a drop point and has no other drop points to go to
+        return state.current_location in self.drop_points \
+                and state.dropped_so_far == self.drop_points
