@@ -193,6 +193,7 @@ class MinimaxAgent(MultiAgentSearchAgent):
 ######################################################################################
 # d: implementing alpha-beta
 
+import numpy as np
 class AlphaBetaAgent(MultiAgentSearchAgent):
   """
     Your minimax agent with alpha-beta pruning
@@ -203,9 +204,66 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
       Returns the minimax action using self.depth and self.evaluationFunction
     """
 
-    # BEGIN_YOUR_CODE
-    raise Exception("Not implemented yet")
-    # END_YOUR_CODE
+    from game import Directions
+    legal_moves = gameState.getLegalActions(self.index)
+    max_score = -np.inf
+    best_move = Directions.STOP
+    alpha = -np.inf
+    for move in legal_moves:
+      state = gameState.generateSuccessor(self.index, move)
+      score = self._alphabeta(state, self.index, self.depth, alpha, np.inf)
+      if score > max_score:
+        max_score = score
+        alpha = score
+        best_move = move
+    return best_move
+
+  def _alphabeta(self, rootState, agentIndex, depth, alpha, beta):
+    # Handle end of game and out of depth
+    legalMoves = rootState.getLegalActions(agentIndex)
+    if rootState.isWin() or rootState.isLose() or not legalMoves:
+      return rootState.getScore()
+    if depth == 0:
+      return self.evaluationFunction(rootState)
+
+    numAgents = rootState.getNumAgents()
+    # current agent is us: max layer
+    if agentIndex == self.index:
+      maxScore = -np.inf
+      for move in legalMoves:
+        nextState = rootState.generateSuccessor(agentIndex, move)
+        nextAgent = (agentIndex + 1) % numAgents
+        if nextAgent == 0:
+          nextDepth = depth - 1
+        else:
+          nextDepth = depth
+        score = self._alphabeta(nextState, nextAgent, nextDepth, alpha, beta)
+        if score >= beta:
+          # value from current branch will be unused, so trim it
+          return np.inf
+        if score > maxScore:
+          maxScore = score
+          if score > alpha:
+            alpha = score
+      return maxScore
+    # current agnet is not us: min layer
+    minScore = np.inf
+    for move in legalMoves:
+      nextState = rootState.generateSuccessor(agentIndex, move)
+      nextAgent = (agentIndex + 1) % numAgents
+      if nextAgent == 0:
+        nextDepth = depth - 1
+      else:
+        nextDepth = depth
+      score = self._alphabeta(nextState, nextAgent, nextDepth, alpha, beta)
+      if score <= alpha:
+        # value from current branch will be unused, so trim it
+        return -np.inf
+      if score < minScore:
+        minScore = score
+        if score < beta:
+          beta = score
+    return minScore
 
 ######################################################################################
 # e: implementing random expectimax
