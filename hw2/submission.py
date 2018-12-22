@@ -278,10 +278,44 @@ class RandomExpectimaxAgent(MultiAgentSearchAgent):
       Returns the expectimax action using self.depth and self.evaluationFunction
       All ghosts should be modeled as choosing uniformly at random from their legal moves.
     """
+    from game import Directions
+    legal_moves = gameState.getLegalActions(self.index)
+    max_score = None
+    best_move = Directions.STOP
+    for move in legal_moves:
+      state = gameState.generateSuccessor(self.index, move)
+      score = self._expectimax(state, self.index, self.depth)
+      if max_score is None or score > max_score:
+        max_score = score
+        best_move = move
+    return best_move
 
-    # BEGIN_YOUR_CODE
-    raise Exception("Not implemented yet")
-    # END_YOUR_CODE
+  def _expectimax(self, rootState, agentIndex, depth):
+    # Handle end of game and out of depth
+    legalMoves = rootState.getLegalActions(agentIndex)
+    if rootState.isWin() or rootState.isLose() or not legalMoves:
+      return rootState.getScore()
+    if depth == 0:
+      return self.evaluationFunction(rootState)
+
+    numAgents = rootState.getNumAgents()
+    # Get scores for all child states
+    scores = []
+    for move in legalMoves:
+      nextState = rootState.generateSuccessor(agentIndex, move)
+      nextAgent = (agentIndex + 1) % numAgents
+      if nextAgent == 0:
+        nextDepth = depth - 1
+      else:
+        nextDepth = depth
+      score = self._expectimax(nextState, nextAgent, nextDepth)
+      scores.append(score)
+    # current agent is us: max layer
+    if agentIndex == self.index:
+      return max(scores)
+    # current agnet is not us: probabilistic layer
+    # RandomGhost treats all steps with equal probabily, so calc a simple average
+    return np.average(scores)
 
 ######################################################################################
 # f: implementing directional expectimax
