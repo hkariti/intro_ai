@@ -85,7 +85,7 @@ def betterEvaluationFunction(gameState):
   score = gameState.getScore()
 
 # TODO: Fix this heuristic. It has bad performance and it will be considered better than the real score because it's higher
-  return capsule_effect*(-capsule_distance + ghost_distance) + score
+  return (-1/(capsule_distance +1)- 1/(ghost_distance+1))**(capsule_effect) + score
 
 #     ********* MultiAgent Search Agents- sections c,d,e,f*********
 
