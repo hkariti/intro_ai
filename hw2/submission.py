@@ -84,6 +84,7 @@ def betterEvaluationFunction(gameState):
     ghost_distance = 0
   score = gameState.getScore()
 
+# TODO: Fix this heuristic. It has bad performance and it will be considered better than the real score because it's higher
   return capsule_effect*(-capsule_distance + ghost_distance) + score
 
 #     ********* MultiAgent Search Agents- sections c,d,e,f*********
@@ -150,10 +151,44 @@ class MinimaxAgent(MultiAgentSearchAgent):
         The depth to which search should continue
 
     """
+    from game import Directions
+    legal_moves = gameState.getLegalActions(self.index)
+    max_score = None
+    best_move = Directions.STOP
+    for move in legal_moves:
+      state = gameState.generateSuccessor(self.index, move)
+      score = self._minimax(state, self.index, self.depth)
+      if max_score is None or score > max_score:
+        max_score = score
+        best_move = move
+    return best_move
 
-    # BEGIN_YOUR_CODE
-    raise Exception("Not implemented yet")
-    # END_YOUR_CODE
+  def _minimax(self, rootState, agentIndex, depth):
+    # Handle end of game and out of depth
+    legalMoves = rootState.getLegalActions(agentIndex)
+    if rootState.isWin() or rootState.isLose() or not legalMoves:
+      return rootState.getScore()
+    if depth == 0:
+      return self.evaluationFunction(rootState)
+
+    numAgents = rootState.getNumAgents()
+    # Get scores for all child states
+    scores = []
+    for move in legalMoves:
+      nextState = rootState.generateSuccessor(agentIndex, move)
+      nextAgent = (agentIndex + 1) % numAgents
+      if nextAgent == 0:
+        nextDepth = depth - 1
+      else:
+        nextDepth = depth
+      score = self._minimax(nextState, nextAgent, nextDepth)
+      scores.append(score)
+    # current agent is us: max layer
+    if agentIndex == self.index:
+      return max(scores)
+    # current agnet is not us: min layer
+    return min(scores)
+
 
 ######################################################################################
 # d: implementing alpha-beta
