@@ -280,12 +280,12 @@ class RandomExpectimaxAgent(MultiAgentSearchAgent):
     """
     from game import Directions
     legal_moves = gameState.getLegalActions(self.index)
-    max_score = None
+    max_score = -np.inf
     best_move = Directions.STOP
     for move in legal_moves:
       state = gameState.generateSuccessor(self.index, move)
       score = self._expectimax(state, self.index, self.depth)
-      if max_score is None or score > max_score:
+      if score > max_score:
         max_score = score
         best_move = move
     return best_move
@@ -325,15 +325,75 @@ class DirectionalExpectimaxAgent(MultiAgentSearchAgent):
     Your expectimax agent
   """
 
+  rushProb = 0.8
   def getAction(self, gameState):
     """
       Returns the expectimax action using self.depth and self.evaluationFunction
       All ghosts should be modeled as using the DirectionalGhost distribution to choose from their legal moves.
     """
+    from game import Directions
+    legal_moves = gameState.getLegalActions(self.index)
+    max_score = -np.inf
+    best_move = Directions.STOP
+    for move in legal_moves:
+      state = gameState.generateSuccessor(self.index, move)
+      score = self._expectimax(state, self.index, self.depth)
+      if score > max_score:
+        max_score = score
+        best_move = move
+    return best_move
 
-    # BEGIN_YOUR_CODE
-    raise Exception("Not implemented yet")
-    # END_YOUR_CODE
+  def _expectimax(self, rootState, agentIndex, depth):
+    # Handle end of game and out of depth
+    legalMoves = rootState.getLegalActions(agentIndex)
+    if rootState.isWin() or rootState.isLose() or not legalMoves:
+      return rootState.getScore()
+    if depth == 0:
+      return self.evaluationFunction(rootState)
+
+    numAgents = rootState.getNumAgents()
+    isPacmanLayer = agentIndex == self.index
+    # Get scores for all child states
+    scores = []
+    movesData = {}
+    for move in legalMoves:
+      nextState = rootState.generateSuccessor(agentIndex, move)
+      nextAgent = (agentIndex + 1) % numAgents
+      if nextAgent == 0:
+        nextDepth = depth - 1
+      else:
+        nextDepth = depth
+      score = self._expectimax(nextState, nextAgent, nextDepth)
+      movesData[move] = dict(score=score)
+      # Get the distance from pacman for ghosts (needed for probability calculations)
+      if not isPacmanLayer:
+        pacmanPos = nextState.getPacmanPosition()
+        myPos = nextState.getGhostPosition(agentIndex)
+        movesData[move]["distance"] = util.manhattanDistance(myPos, pacmanPos)
+    # current agent is us: max layer
+    if isPacmanLayer:
+      return max([ m['score'] for m in movesData.values() ])
+    # current agnet is not us: probabilistic layer
+    # DirectionalGhost will pick try to rush us with probability >=rushProb
+    # probability calculations is similiar to the one the ghost does
+    probabilities = util.Counter()
+    isScared = rootState.getGhostState(agentIndex).scaredTimer > 0
+    if isScared:
+      chosenDist = max([ m['distance'] for m in movesData.values() ])
+    else:
+      chosenDist = min([ m['distance'] for m in movesData.values() ])
+    numActions = len(movesData)
+    numChosen = len([m for m in movesData.values() if m['distance'] == chosenDist])
+    for m, d in movesData.items():
+      if d['distance'] == chosenDist:
+        probabilities[m] = self.rushProb/numChosen
+      probabilities[m] += (1-self.rushProb)/numActions
+    probabilities.normalize()
+    # Calculate expected score value based on probabilities above
+    expected_value = 0
+    for m, p in probabilities.items():
+      expected_value += p * movesData[m]['score']
+    return expected_value
 
 
 ######################################################################################
