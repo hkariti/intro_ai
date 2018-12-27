@@ -109,6 +109,29 @@ class MultiAgentSearchAgent(Agent):
     self.evaluationFunction = util.lookup(evalFn, globals())
     self.depth = int(depth)
 
+  # Generic form for getAction, used by all class children
+  def _getAction(self, gameState, strategyFunc, kwargs_func=None, init_func=None, newmax_func=None):
+    from game import Directions
+    legal_moves = gameState.getLegalActions(self.index)
+    max_score = None
+    best_move = Directions.STOP
+    if init_func:
+        init_func()
+    for move in legal_moves:
+      state = gameState.generateSuccessor(self.index, move)
+      if kwargs_func:
+          kwargs = kwargs_func()
+      else:
+          kwargs = {}
+      score = strategyFunc(state, self.index, self.depth, **kwargs)
+      if max_score is None or score > max_score:
+        max_score = score
+        best_move = move
+        if newmax_func:
+            newmax_func(score)
+    return best_move
+
+
 ######################################################################################
 # c: implementing minimax
 
@@ -151,17 +174,7 @@ class MinimaxAgent(MultiAgentSearchAgent):
         The depth to which search should continue
 
     """
-    from game import Directions
-    legal_moves = gameState.getLegalActions(self.index)
-    max_score = None
-    best_move = Directions.STOP
-    for move in legal_moves:
-      state = gameState.generateSuccessor(self.index, move)
-      score = self._minimax(state, self.index, self.depth)
-      if max_score is None or score > max_score:
-        max_score = score
-        best_move = move
-    return best_move
+    return self._getAction(gameState, self._minimax)
 
   def _minimax(self, rootState, agentIndex, depth):
     # Handle end of game and out of depth
@@ -203,20 +216,17 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
     """
       Returns the minimax action using self.depth and self.evaluationFunction
     """
+    return self._getAction(gameState, self._alphabeta, kwargs_func=self._return_alpha_beta,
+            init_func=self._init_alphabeta, newmax_func=self._update_alpha)
 
-    from game import Directions
-    legal_moves = gameState.getLegalActions(self.index)
-    max_score = -np.inf
-    best_move = Directions.STOP
-    alpha = -np.inf
-    for move in legal_moves:
-      state = gameState.generateSuccessor(self.index, move)
-      score = self._alphabeta(state, self.index, self.depth, alpha, np.inf)
-      if score > max_score:
-        max_score = score
-        alpha = score
-        best_move = move
-    return best_move
+  def _init_alphabeta(self):
+      self.alpha = -np.inf
+
+  def _update_alpha(self, score):
+      self.alpha = score
+
+  def _return_alpha_beta(self):
+      return dict(alpha=self.alpha, beta=np.inf)
 
   def _alphabeta(self, rootState, agentIndex, depth, alpha, beta):
     # Handle end of game and out of depth
@@ -278,17 +288,7 @@ class RandomExpectimaxAgent(MultiAgentSearchAgent):
       Returns the expectimax action using self.depth and self.evaluationFunction
       All ghosts should be modeled as choosing uniformly at random from their legal moves.
     """
-    from game import Directions
-    legal_moves = gameState.getLegalActions(self.index)
-    max_score = -np.inf
-    best_move = Directions.STOP
-    for move in legal_moves:
-      state = gameState.generateSuccessor(self.index, move)
-      score = self._expectimax(state, self.index, self.depth)
-      if score > max_score:
-        max_score = score
-        best_move = move
-    return best_move
+    return self._getAction(gameState, self._expectimax)
 
   def _expectimax(self, rootState, agentIndex, depth):
     # Handle end of game and out of depth
@@ -331,17 +331,7 @@ class DirectionalExpectimaxAgent(MultiAgentSearchAgent):
       Returns the expectimax action using self.depth and self.evaluationFunction
       All ghosts should be modeled as using the DirectionalGhost distribution to choose from their legal moves.
     """
-    from game import Directions
-    legal_moves = gameState.getLegalActions(self.index)
-    max_score = -np.inf
-    best_move = Directions.STOP
-    for move in legal_moves:
-      state = gameState.generateSuccessor(self.index, move)
-      score = self._expectimax(state, self.index, self.depth)
-      if score > max_score:
-        max_score = score
-        best_move = move
-    return best_move
+    return self._getAction(gameState, self._expectimax)
 
   def _expectimax(self, rootState, agentIndex, depth):
     # Handle end of game and out of depth
