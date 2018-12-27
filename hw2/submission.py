@@ -1,4 +1,6 @@
 import random, util
+import numpy as np
+import time
 from game import Agent
 
 #     ********* Reflex agent- sections a and b *********
@@ -108,10 +110,12 @@ class MultiAgentSearchAgent(Agent):
     self.index = 0 # Pacman is always agent index 0
     self.evaluationFunction = util.lookup(evalFn, globals())
     self.depth = int(depth)
+    self._turn_durations = []
 
   # Generic form for getAction, used by all class children
   def _getAction(self, gameState, strategyFunc, kwargs_func=None, init_func=None, newmax_func=None):
     from game import Directions
+    begin_time = time.time()
     legal_moves = gameState.getLegalActions(self.index)
     max_score = None
     best_move = Directions.STOP
@@ -129,7 +133,12 @@ class MultiAgentSearchAgent(Agent):
         best_move = move
         if newmax_func:
             newmax_func(score)
+    end_time = time.time()
+    self._turn_durations.append(end_time - begin_time)
     return best_move
+
+  def final(self, state):
+      print('Average turn time: {:0.3f}'.format(np.average(self._turn_durations)))
 
 
 ######################################################################################
@@ -206,7 +215,6 @@ class MinimaxAgent(MultiAgentSearchAgent):
 ######################################################################################
 # d: implementing alpha-beta
 
-import numpy as np
 class AlphaBetaAgent(MultiAgentSearchAgent):
   """
     Your minimax agent with alpha-beta pruning
