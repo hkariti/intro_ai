@@ -12,6 +12,7 @@ class ReflexAgent(Agent):
   def __init__(self):
     self.lastPositions = []
     self.dc = None
+    self._turn_durations = []
 
 
   def getAction(self, gameState):
@@ -21,6 +22,8 @@ class ReflexAgent(Agent):
     getAction takes a GameState and returns some Directions.X for some X in the set {North, South, West, East, Stop}
     ------------------------------------------------------------------------------
     """
+    # measure run time
+    start_time = time.time()
     # Collect legal moves and successor states
     legalMoves = gameState.getLegalActions()
 
@@ -29,6 +32,8 @@ class ReflexAgent(Agent):
     bestScore = max(scores)
     bestIndices = [index for index in range(len(scores)) if scores[index] == bestScore]
     chosenIndex = random.choice(bestIndices) # Pick randomly among the best
+    end_time = time.time()
+    self._turn_durations.append(end_time - start_time)
 
 
     return legalMoves[chosenIndex]
@@ -41,6 +46,9 @@ class ReflexAgent(Agent):
     successorGameState = currentGameState.generatePacmanSuccessor(action)
     return betterEvaluationFunction(successorGameState)
 
+  def final(self, state):
+      print('Average turn time: {:0.3f}'.format(np.average(self._turn_durations)))
+      self._turn_durations = []
 
 #     ********* Evaluation functions *********
 
@@ -69,25 +77,40 @@ def betterEvaluationFunction(gameState):
   gameState.getScore():
   The GameState class is defined in pacman.py and you might want to look into that for other helper methods.
   """
-  pacman_position = gameState.getPacmanPosition()
-  capsule_distance = min([util.manhattanDistance(capsule, pacman_position) for capsule in gameState.getCapsules()], default=0)
-  ghost_indices = range(1, gameState.getNumAgents())
-  get_ghost_distance = lambda g: util.manhattanDistance(pacman_position, gameState.getGhostPosition(g))
-  ghosts = [(ghost_id, get_ghost_distance(ghost_id)) for ghost_id in ghost_indices ]
-  closest_ghost = min(ghosts, key=lambda g: g[1], default=None)
-  if closest_ghost is not None:
-    ghost_distance = closest_ghost[1]
-    if gameState.getGhostState(closest_ghost[0]).scaredTimer:
-      capsule_effect = -1
-    else:
-      capsule_effect = 1
-  else:
-    capsule_effect = 1
-    ghost_distance = 0
+  pacmanPosition = gameState.getPacmanPosition()
   score = gameState.getScore()
+  # Calculate ghosts score
+  numAgents = gameState.getNumAgents()
+  numGhosts = numAgents - 1
+  capsuleDistance = min([util.manhattanDistance(capsule, pacmanPosition) for capsule in gameState.getCapsules()], default=0)
+  ghostIndices = range(1, numAgents)
+  getGhostDistance = lambda g: util.manhattanDistance(pacmanPosition, gameState.getGhostPosition(g))
+  closestGhostIndex = min(ghostIndices, key=lambda g: getGhostDistance(g), default=None)
+  if closestGhostIndex is None:
+    # To avoid getting stuck in loops with no ghosts to break them
+    ghostScore = util.random.randint(-10, 10)
+  else:
+    ghostDistance = getGhostDistance(closestGhostIndex)
+    if gameState.getGhostState(closestGhostIndex).scaredTimer:
+      # Scared ghosts are an opportunity
+      ghostScore = 200 - ghostDistance
+    else:
+      # Brave ghosts are scary :(
+      ghostScore = -(500 - ghostDistance)
 
-# TODO: Fix this heuristic. It has bad performance and it will be considered better than the real score because it's higher
-  return (-1/(capsule_distance +1)- 1/(ghost_distance+1))**(capsule_effect) + score
+  # Calculate food score
+  food = gameState.getFood()
+  foodDistance = np.inf
+  for x in range(food.width):
+    for y in range(food.height):
+      if not food[x][y]:
+        continue
+      d = util.manhattanDistance(pacmanPosition, (x, y))
+      if d < foodDistance:
+        foodDistance = d
+  foodScore = 10/foodDistance
+
+  return score + foodScore + ghostScore
 
 #     ********* MultiAgent Search Agents- sections c,d,e,f*********
 
@@ -139,6 +162,7 @@ class MultiAgentSearchAgent(Agent):
 
   def final(self, state):
       print('Average turn time: {:0.3f}'.format(np.average(self._turn_durations)))
+      self._turn_durations = []
 
 
 ######################################################################################
