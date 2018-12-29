@@ -421,20 +421,98 @@ class DirectionalExpectimaxAgent(MultiAgentSearchAgent):
 ######################################################################################
 # I: implementing competition agent
 
+from game import Directions
 class CompetitionAgent(MultiAgentSearchAgent):
   """
     Your competition agent
   """
+  def __init__(self, depth=2):
+    MultiAgentSearchAgent.__init__(self, depth=depth)
+    self.evaluationFunction = self.betterEvaluationFunction
+    self._timeLimit = 28
+    self._startTime = time.time()
+
+  def final(self, asd):
+    # Restart the clock after game has finished
+    self._startTime = time.time()
+
+  def betterEvaluationFunction(self, gameState):
+    pacmanPosition = gameState.getPacmanPosition()
+    score = gameState.getScore()
+    # Calculate ghosts score
+    numAgents = gameState.getNumAgents()
+    numGhosts = numAgents - 1
+    capsuleDistance = min([util.manhattanDistance(capsule, pacmanPosition) for capsule in gameState.getCapsules()], default=0)
+    ghostIndices = range(1, numAgents)
+    getGhostDistance = lambda g: util.manhattanDistance(pacmanPosition, gameState.getGhostPosition(g))
+    closestGhostIndex = min(ghostIndices, key=lambda g: getGhostDistance(g), default=None)
+    if closestGhostIndex is None:
+      # To avoid getting stuck in loops with no ghosts to break them
+      ghostScore = util.random.randint(-10, 10)
+    else:
+      ghostState = gameState.getGhostState(closestGhostIndex)
+      isScared = ghostState.scaredTimer > 0
+      ghostDistance = getGhostDistance(closestGhostIndex)
+      ghostPos = ghostState.getPosition()
+      if isScared:
+        # Scared ghosts are an opportunity
+        ghostScore = 200/(1+ghostDistance)
+      else:
+        # Brave ghosts are scary :(
+        ghostScore = -(500/(1+ghostDistance))
+
+    # Calculate food score
+    food = gameState.getFood()
+    foodDistance = np.inf
+    for x in range(food.width):
+      for y in range(food.height):
+        if not food[x][y]:
+          continue
+        d = util.manhattanDistance(pacmanPosition, (x, y))
+        if d < foodDistance:
+          foodDistance = d
+    foodScore = 10/foodDistance
+
+    return score + foodScore + ghostScore
 
   def getAction(self, gameState):
-    """
-      Returns the action using self.depth and self.evaluationFunction
+    begin_time = time.time()
+    legal_moves = gameState.getLegalActions(self.index)
+    max_score = -np.inf
+    best_move = Directions.STOP
+    for move in legal_moves:
+      state = gameState.generateSuccessor(self.index, move)
+      score = self._expectimax(state, self.index, self.depth)
+      if score > max_score:
+        max_score = score
+        best_move = move
+    return best_move
 
-    """
+  def _expectimax(self, rootState, agentIndex, depth):
+    # Handle end of game and out of depth
+    legalMoves = rootState.getLegalActions(agentIndex)
+    if rootState.isWin() or rootState.isLose() or not legalMoves:
+      return rootState.getScore()
+    if depth == 0 or time.time() - self._startTime > self._timeLimit:
+      # Call heuristic if we're out of depth
+      # Also skip fancy alg and call heuristic if we're out of time
+      return self.evaluationFunction(rootState)
 
-    # BEGIN_YOUR_CODE
-    raise Exception("Not implemented yet")
-    # END_YOUR_CODE
-
-
-
+    numAgents = rootState.getNumAgents()
+    # Get scores for all child states
+    scores = []
+    for move in legalMoves:
+      nextState = rootState.generateSuccessor(agentIndex, move)
+      nextAgent = (agentIndex + 1) % numAgents
+      if nextAgent == 0:
+        nextDepth = depth - 1
+      else:
+        nextDepth = depth
+      score = self._expectimax(nextState, nextAgent, nextDepth)
+      scores.append(score)
+    # current agent is us: max layer
+    if agentIndex == self.index:
+      return max(scores)
+    # current agnet is not us: probabilistic layer
+    # RandomGhost treats all steps with equal probabily, so calc a simple average
+    return np.average(scores)
