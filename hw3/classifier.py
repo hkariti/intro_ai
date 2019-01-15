@@ -1,6 +1,10 @@
 import numpy as np
 from hw3_utils import abstract_classifier, abstract_classifier_factory
-from utils import euclidean_distance
+
+def euclidean_distance(x1, x2):
+    diff_squared = (x1 - x2)**2
+    distance_squared = diff_squared.sum(axis=0)
+    return np.sqrt(distance_squared)
 
 class knn_classifier(abstract_classifier):
     def __init__(self, k, train_set, train_labels):
