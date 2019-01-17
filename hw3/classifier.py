@@ -43,7 +43,7 @@ class sklearn_classifier(abstract_classifier):
 
 class tree_factory(abstract_classifier_factory):
     def train(self, data, labels):
-        t = tree.DecisionTreeClassifier()
+        t = tree.DecisionTreeClassifier(criterion='entropy')
         return sklearn_classifier(t, data, labels)
 
 class perceptron_factory(abstract_classifier_factory):
