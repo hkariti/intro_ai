@@ -76,5 +76,9 @@ class contest_classifier(abstract_classifier):
         return np.round(self.full_weight * p_full + (1-self.full_weight)*p_partial)
 
 class contest_factory(abstract_classifier_factory):
+    def __init__(self, tree_depth, tree_weight):
+        self.tree_depth = tree_depth
+        self.tree_weight = tree_weight
+
     def train(self, data, labels):
-        return contest_classifier(3, 0.7, data, labels)
+        return contest_classifier(self.tree_depth, self.tree_weight, data, labels)
