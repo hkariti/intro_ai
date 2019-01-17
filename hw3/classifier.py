@@ -43,7 +43,7 @@ class sklearn_classifier(abstract_classifier):
 
 class tree_factory(abstract_classifier_factory):
     def train(self, data, labels):
-        t = tree.DecisionTreeClassifier(max_depth=3)
+        t = tree.DecisionTreeClassifier()
         return sklearn_classifier(t, data, labels)
 
 class perceptron_factory(abstract_classifier_factory):
@@ -63,6 +63,7 @@ class contest_classifier(abstract_classifier):
         partial_labels = labels[separate]
         self.partial_tree.fit(partial_data, partial_labels)
 
+    @classmethod
     def _separate(self, data):
         separate1 = (data[:, 3] <= 0.374) & \
                     (data[:, 16] > 0.003) & \
