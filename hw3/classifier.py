@@ -1,4 +1,6 @@
 import numpy as np
+from sklearn import tree
+from sklearn.linear_model import Perceptron
 from hw3_utils import abstract_classifier, abstract_classifier_factory
 
 def euclidean_distance(x1, x2):
@@ -28,3 +30,23 @@ class knn_factory(abstract_classifier_factory):
 
     def train(self, data, labels):
         return knn_classifier(self.k, data, labels)
+
+class sklearn_classifier(abstract_classifier):
+    def __init__(self, classifier, train_set, train_labels):
+        self.classifier = classifier
+        self.classifier.fit(train_set, train_labels)
+
+    def classify(self, features):
+        feature_mat = features.reshape((1, -1))
+        prediction = self.classifier.predict(feature_mat)
+        return prediction[0]
+
+class tree_factory(abstract_classifier_factory):
+    def train(self, data, labels):
+        t = tree.DecisionTreeClassifier()
+        return sklearn_classifier(t, data, labels)
+
+class perceptron_factory(abstract_classifier_factory):
+    def train(self, data, labels):
+        p = Perceptron(tol=1e-4)
+        return sklearn_classifier(p, data, labels)
