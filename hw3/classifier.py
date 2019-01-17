@@ -58,22 +58,30 @@ class contest_classifier(abstract_classifier):
         self.partial_tree = tree.DecisionTreeClassifier(max_depth=tree_depth)
 
         self.full_tree.fit(data, labels)
+        separate = self._separate(data)
+        partial_data = data[separate]
+        partial_labels = labels[separate]
+        self.partial_tree.fit(partial_data, partial_labels)
+
+    def _separate(self, data):
         separate1 = (data[:, 3] <= 0.374) & \
                     (data[:, 16] > 0.003) & \
                     (data[:, 74] > -0.002)
         separate2 = (data[:, 3] > 0.374) & \
                     (data[:, 98] <= 0.364) & \
                     (data[:, 16] > 0.017)
-        partial_data = data[separate1 | separate2]
-        partial_labels = labels[separate1 | separate2]
-        self.partial_tree.fit(partial_data, partial_labels)
+        return separate1 | separate2
 
     def classify(self, features):
         features_mat = features.reshape((1, -1))
         p_full = self.full_tree.predict(features_mat)[0]
-        p_partial = self.partial_tree.predict(features_mat)[0]
+        separate = self._separate(features_mat)
+        if separate[0]:
+            p_partial = self.partial_tree.predict(features_mat)[0]
+        else:
+            p_partial = p_full
 
-        return np.round(self.full_weight * p_full + (1-self.full_weight)*p_partial)
+        return bool(np.round(self.full_weight * p_full + (1-self.full_weight)*p_partial))
 
 class contest_factory(abstract_classifier_factory):
     def __init__(self, tree_depth, tree_weight):
