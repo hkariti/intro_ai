@@ -28,3 +28,7 @@ def experiment12(num_folds=2):
     output_file = open('experiment12.csv', 'w')
     output_file.write("1,{:.3f},{:.3f}\n".format(*tree_results))
     output_file.write("2,{:.3f},{:.3f}\n".format(*perceptron_results))
+
+if __name__ == '__main__':
+    experiment6()
+    experiment12()
