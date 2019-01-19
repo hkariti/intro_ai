@@ -25,7 +25,7 @@ def experiment_perceptron(num_folds=2):
 def experiment12(num_folds=2):
     tree_results = experiment_tree(num_folds)
     perceptron_results = experiment_perceptron(num_folds)
-    output_file = open('experiment12.csv', 'w')
+    output_file = open('experiments12.csv', 'w')
     output_file.write("1,{:.3f},{:.3f}\n".format(*tree_results))
     output_file.write("2,{:.3f},{:.3f}\n".format(*perceptron_results))
 
