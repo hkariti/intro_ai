@@ -1,6 +1,9 @@
 import numpy as np
 from sklearn import tree
+from sklearn.ensemble import AdaBoostClassifier
 from sklearn.linear_model import Perceptron
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.feature_selection import SelectPercentile
 from hw3_utils import abstract_classifier, abstract_classifier_factory
 
 def euclidean_distance(x1, x2):
@@ -52,42 +55,44 @@ class perceptron_factory(abstract_classifier_factory):
         return sklearn_classifier(p, data, labels)
 
 class contest_classifier(abstract_classifier):
-    def __init__(self, tree_depth, full_weight, data, labels):
-        self.full_weight = full_weight
-        self.full_tree = tree.DecisionTreeClassifier(max_depth=tree_depth)
-        self.partial_tree = tree.DecisionTreeClassifier(max_depth=tree_depth)
+    def __init__(self, data, labels, neighbors_n=1, tree_depth=1, features_p=24):
+        self.ada = AdaBoostClassifier()
+        self.tree = tree.DecisionTreeClassifier(max_depth=8)
+        self.knn = KNeighborsClassifier(n_neighbors=neighbors_n)
+        self.perceptron = Perceptron(tol=1e-3)
 
-        self.full_tree.fit(data, labels)
-        separate = self._separate(data)
-        partial_data = data[separate]
-        partial_labels = labels[separate]
-        self.partial_tree.fit(partial_data, partial_labels)
+        self.sp_knn = SelectPercentile(percentile=24)
+        self.sp_tree = SelectPercentile(percentile=16)
+        self.sp_ada = SelectPercentile(percentile=85)
+        self.sp_percep = SelectPercentile(percentile=35)
 
-    @classmethod
-    def _separate(self, data):
-        separate1 = (data[:, 3] <= 0.374) & \
-                    (data[:, 16] > 0.003) & \
-                    (data[:, 74] > -0.002)
-        separate2 = (data[:, 3] > 0.374) & \
-                    (data[:, 98] <= 0.364) & \
-                    (data[:, 16] > 0.017)
-        return separate1 | separate2
+        data_knn = self.sp_knn.fit_transform(data, labels)
+        data_tree = self.sp_tree.fit_transform(data, labels)
+        data_ada = self.sp_ada.fit_transform(data, labels)
+        data_percep = self.sp_percep.fit_transform(data, labels)
+
+        self.knn.fit(data_knn, labels)
+        self.tree.fit(data_tree, labels)
+        self.ada.fit(data_ada, labels)
+        self.perceptron.fit(data_percep, labels)
 
     def classify(self, features):
         features_mat = features.reshape((1, -1))
-        p_full = self.full_tree.predict(features_mat)[0]
-        separate = self._separate(features_mat)
-        if separate[0]:
-            p_partial = self.partial_tree.predict(features_mat)[0]
-        else:
-            p_partial = p_full
+        features_knn = self.sp_knn.transform(features_mat)
+        features_tree = self.sp_tree.transform(features_mat)
+        features_ada = self.sp_ada.transform(features_mat)
+        features_percep = self.sp_percep.transform(features_mat)
 
-        return bool(np.round(self.full_weight * p_full + (1-self.full_weight)*p_partial))
+        p1 = int(self.knn.predict(features_knn)[0])
+        p2 = int(self.ada.predict(features_ada)[0])
+        p3 = int(self.perceptron.predict(features_percep)[0])
+
+        avg = (p1 + p2 + p3)/3
+        return bool(np.around(avg))
 
 class contest_factory(abstract_classifier_factory):
-    def __init__(self, tree_depth, tree_weight):
+    def __init__(self, tree_depth=1):
         self.tree_depth = tree_depth
-        self.tree_weight = tree_weight
 
     def train(self, data, labels):
-        return contest_classifier(self.tree_depth, self.tree_weight, data, labels)
+        return contest_classifier(data, labels, 1, self.tree_depth)
