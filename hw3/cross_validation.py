@@ -26,6 +26,9 @@ def load_k_fold_data(fold_id):
     return fold
 
 def pop_test_fold(samples, labels, test_fold):
+    """
+    Return the given samples without the set used for testing
+    """
     num_folds = samples.shape[0]
     train_folds = list(range(num_folds))
     train_folds.pop(test_fold)

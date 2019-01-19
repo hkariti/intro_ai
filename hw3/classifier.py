@@ -35,6 +35,10 @@ class knn_factory(abstract_classifier_factory):
         return knn_classifier(self.k, data, labels)
 
 class sklearn_classifier(abstract_classifier):
+    """
+    A simple wrapper for classifiers from sklearn library. Used by *_factory
+    classes.
+    """
     def __init__(self, classifier, train_set, train_labels):
         self.classifier = classifier
         self.classifier.fit(train_set, train_labels)
@@ -119,7 +123,7 @@ class multiple_classifiers1(abstract_classifier):
         p3 = int(self.perceptron.predict(features_percep)[0])
 
         avg = (p1 + p2 + p3)/3
-        return bool(np.around(avg))
+        return bool(np.round(avg))
 
 class multiple_classifiers_with_pruned_tree(abstract_classifier):
     def __init__(self, data, labels, **kwargs):
@@ -149,6 +153,7 @@ class multiple_classifiers_with_pruned_tree(abstract_classifier):
         self.prune(self.tree, 0, validation_data, validation_labels)
 
     def prune(self, tree_obj, index, validation_data, validation_labels):
+        # based on https://stackoverflow.com/a/49496027
         inner_tree = tree_obj.tree_
         left_child = inner_tree.children_left[index]
         right_child = inner_tree.children_right[index]
@@ -183,7 +188,7 @@ class multiple_classifiers_with_pruned_tree(abstract_classifier):
         p3 = int(self.tree.predict(features_tree)[0])
 
         avg = (w1*p1 + w2*p2 + w3*p3)/(w1 + w2 + w3)
-        return bool(avg)
+        return bool(np.round(avg))
 
 # After examining the ID3 tree, we noticed that there were 2 groups of features that were separated well
 # We the thought to train a tree that looks at only the datapoints _outside_ these two groups
