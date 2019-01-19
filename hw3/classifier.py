@@ -55,14 +55,15 @@ class perceptron_factory(abstract_classifier_factory):
         return sklearn_classifier(p, data, labels)
 
 class contest_classifier(abstract_classifier):
-    def __init__(self, data, labels, neighbors_n=1, tree_depth=1, features_p=24):
-        self.ada = AdaBoostClassifier()
+    def __init__(self, data, labels, **kwargs):
+        self.args = kwargs
+        self.ada = AdaBoostClassifier(n_estimators=50)
         self.tree = tree.DecisionTreeClassifier(max_depth=8)
-        self.knn = KNeighborsClassifier(n_neighbors=neighbors_n)
+        self.knn = KNeighborsClassifier(n_neighbors=1)
         self.perceptron = Perceptron(tol=1e-3)
 
         self.sp_knn = SelectPercentile(percentile=24)
-        self.sp_tree = SelectPercentile(percentile=16)
+        self.sp_tree = SelectPercentile(percentile=kwargs['tree_per'])
         self.sp_ada = SelectPercentile(percentile=85)
         self.sp_percep = SelectPercentile(percentile=35)
 
@@ -71,10 +72,36 @@ class contest_classifier(abstract_classifier):
         data_ada = self.sp_ada.fit_transform(data, labels)
         data_percep = self.sp_percep.fit_transform(data, labels)
 
+        validation_size = 100
+        train_data = data_tree[:validation_size]
+        train_labels = labels[:validation_size]
+        validation_data = data_tree[validation_size:]
+        validation_labels = labels[validation_size:]
         self.knn.fit(data_knn, labels)
-        self.tree.fit(data_tree, labels)
+        self.tree.fit(train_data, train_labels)
         self.ada.fit(data_ada, labels)
         self.perceptron.fit(data_percep, labels)
+        self.prune(self.tree, 0, validation_data, validation_labels)
+
+    def prune(self, tree, index, validation_data, validation_labels):
+        inner_tree = tree.tree_
+        left_child = inner_tree.children_left[index]
+        right_child = inner_tree.children_right[index]
+        if left_child != -1:
+            self.prune(tree, left_child, validation_data, validation_labels)
+        if right_child != -1:
+            self.prune(tree, right_child, validation_data, validation_labels)
+        predictions_no_prune = tree.predict(validation_data)
+        errors_no_prune = (predictions_no_prune ^ validation_labels).sum()
+
+        inner_tree.children_left[index] = -1
+        inner_tree.children_right[index] = -1
+        predicitions_prune = tree.predict(validation_data)
+        errors_prune = (predicitions_prune ^ validation_labels).sum()
+
+        if errors_prune > errors_no_prune:
+            inner_tree.children_left[index] = left_child
+            inner_tree.children_right[index] = right_child
 
     def classify(self, features):
         features_mat = features.reshape((1, -1))
@@ -83,16 +110,21 @@ class contest_classifier(abstract_classifier):
         features_ada = self.sp_ada.transform(features_mat)
         features_percep = self.sp_percep.transform(features_mat)
 
+        w1 = self.args.get('w1', 1)
+        w2 = self.args.get('w2', 1)
+        w3 = self.args.get('w3', 1)
+
         p1 = int(self.knn.predict(features_knn)[0])
         p2 = int(self.ada.predict(features_ada)[0])
         p3 = int(self.perceptron.predict(features_percep)[0])
+        p3 = int(self.tree.predict(features_tree)[0])
 
-        avg = (p1 + p2 + p3)/3
-        return bool(np.around(avg))
+        avg = (w1*p1 + w2*p2 + w3*p3)/(w1 + w2 + w3)
+        return bool(avg)
 
 class contest_factory(abstract_classifier_factory):
-    def __init__(self, tree_depth=1):
-        self.tree_depth = tree_depth
+    def __init__(self, **kwargs):
+        self.train_args = kwargs
 
     def train(self, data, labels):
-        return contest_classifier(data, labels, 1, self.tree_depth)
+        return contest_classifier(data, labels, **self.train_args)
